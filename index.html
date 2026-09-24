@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Eco Club</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root{
+    --bg: var(--tg-theme-bg-color, #f2f7f2);
+    --text: var(--tg-theme-text-color, #14291b);
+    --hint: var(--tg-theme-hint-color, #6b8a75);
+    --link: var(--tg-theme-link-color, #2ea043);
+    --btn: var(--tg-theme-button-color, #2ea043);
+    --btn-text: var(--tg-theme-button-text-color, #ffffff);
+    --sec-bg: var(--tg-theme-secondary-bg-color, #e6f0e8);
+    --card: #ffffff;
+    --accent: #2ea043;
+    --accent2: #56c98a;
+    --danger: #e05252;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --card:#1c2620; --sec-bg:#101711;
+    }
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg); color:var(--text);
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:calc(64px + env(safe-area-inset-bottom,0px));
+  }
+  header{
+    padding:16px 16px 8px; position:sticky; top:env(safe-area-inset-top,0px);
+    background:var(--bg); z-index:5;
+  }
+  h1{font-size:20px; margin:0 0 4px;}
+  .sub{color:var(--hint); font-size:13px; margin:0;}
+  .tab{display:none; padding:8px 16px 16px; animation:fade .25s ease;}
+  .tab.active{display:block;}
+  @keyframes fade{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+  .card{
+    background:var(--card); border-radius:16px; padding:14px 16px; margin-bottom:12px;
+    box-shadow:0 1px 3px rgba(0,0,0,.06);
+  }
+  .card h3{margin:0 0 6px; font-size:15px;}
+  .card p{margin:4px 0; font-size:13px; color:var(--hint);}
+  .row{display:flex; justify-content:space-between; align-items:center; gap:8px;}
+  .pill{
+    display:inline-block; background:var(--sec-bg); color:var(--accent);
+    border-radius:999px; padding:3px 10px; font-size:12px; font-weight:600;
+  }
+  .btn{
+    background:var(--btn); color:var(--btn-text); border:none; border-radius:12px;
+    padding:10px 14px; font-size:14px; font-weight:600; cursor:pointer; width:100%;
+  }
+  .btn.secondary{background:var(--sec-bg); color:var(--accent);}
+  .btn.small{width:auto; padding:6px 12px; font-size:12px;}
+  .progress-outer{background:var(--sec-bg); border-radius:999px; height:10px; overflow:hidden; margin:8px 0;}
+  .progress-inner{background:linear-gradient(90deg,var(--accent),var(--accent2)); height:100%; border-radius:999px; transition:width .5s;}
+  .level-badge{
+    width:56px; height:56px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent2));
+    display:flex; align-items:center; justify-content:center; font-size:22px; color:#fff; flex-shrink:0;
+  }
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .stat-box{background:var(--sec-bg); border-radius:12px; padding:10px; text-align:center;}
+  .stat-box b{font-size:18px; display:block;}
+  .stat-box span{font-size:11px; color:var(--hint);}
+  .badge-chip{
+    display:inline-block; background:var(--sec-bg); border-radius:10px; padding:6px 10px;
+    margin:3px 4px 0 0; font-size:12px;
+  }
+  nav{
+    position:fixed; bottom:0; left:0; right:0; background:var(--card);
+    display:flex; border-top:1px solid rgba(0,0,0,.06);
+    padding-bottom:env(safe-area-inset-bottom,0px); z-index:10;
+  }
+  nav button{
+    flex:1; background:none; border:none; padding:10px 4px 8px; font-size:10px;
+    color:var(--hint); display:flex; flex-direction:column; align-items:center; gap:3px;
+  }
+  nav button.active{color:var(--accent); font-weight:700;}
+  nav .ic{font-size:19px;}
+  .input{
+    width:100%; padding:9px 10px; border-radius:10px; border:1px solid var(--sec-bg);
+    background:var(--sec-bg); color:var(--text); font-size:14px; margin:4px 0;
+  }
+  select.input{appearance:none;}
+  .empty{text-align:center; color:var(--hint); padding:30px 10px; font-size:13px;}
+  .aq-scale{display:flex; gap:3px; margin-top:8px;}
+  .aq-scale div{flex:1; height:6px; border-radius:4px; opacity:.25;}
+  .aq-scale div.on{opacity:1;}
+  a{color:var(--link);}
+  #qrcode{display:flex; justify-content:center; margin:12px 0;}
+  .footprint-result{font-size:28px; font-weight:800; text-align:center; margin:8px 0 0;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="greeting">🌱 Eco Club</h1>
+  <p class="sub" id="tabTitle">Bosh sahifa</p>
+</header>
+
+<!-- BOSH SAHIFA -->
+<section class="tab active" id="tab-home">
+  <div class="card row">
+    <div class="level-badge" id="levelBadge">🌿</div>
+    <div style="flex:1">
+      <div class="row"><b id="userName">Foydalanuvchi</b><span class="pill" id="pointsPill">0 ball</span></div>
+      <div class="progress-outer"><div class="progress-inner" id="levelProgress" style="width:0%"></div></div>
+      <p id="levelText" style="margin:0;">Daraja: Yangi a'zo</p>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="stat-box"><b id="statEvents">–</b><span>Faol tadbirlar</span></div>
+    <div class="stat-box"><b id="statChallenges">–</b><span>Faol challenge</span></div>
+  </div>
+
+  <div class="card">
+    <h3>🏅 Nishonlaringiz</h3>
+    <div id="badgesWrap"><span class="empty">Hali nishon yo'q — challenge bajarib to'plang!</span></div>
+  </div>
+
+  <div class="card">
+    <h3>🌫 Havo sifati (real vaqt)</h3>
+    <div class="row">
+      <div>
+        <div style="font-size:26px; font-weight:800;" id="aqiValue">–</div>
+        <div class="sub" id="aqiLabel">Yuklanmoqda...</div>
+      </div>
+      <div style="text-align:right;" class="sub">PM2.5: <b id="pm25">–</b> µg/m³</div>
+    </div>
+    <div class="aq-scale" id="aqScale">
+      <div style="background:#56c98a"></div><div style="background:#a8d95a"></div>
+      <div style="background:#f4d35e"></div><div style="background:#f0973b"></div>
+      <div style="background:#e05252"></div><div style="background:#8b3a62"></div>
+    </div>
+  </div>
+
+  <button class="btn secondary" onclick="haptic(); shareApp()">📤 Do'stlarga ulashish</button>
+</section>
+
+<!-- TADBIRLAR -->
+<section class="tab" id="tab-events">
+  <div id="eventsWrap"><p class="empty">Yuklanmoqda...</p></div>
+</section>
+
+<!-- EKO-HISOBLAGICH -->
+<section class="tab" id="tab-calc">
+  <div class="card">
+    <h3>🧮 Shaxsiy karbon iz kalkulyatori</h3>
+    <p>Haftalik odatlaringiz asosida taxminiy CO₂ izingizni hisoblang</p>
+    <label class="sub">🚗 Haftada necha km avtomobilda yurasiz?</label>
+    <input class="input" type="number" id="calcCar" placeholder="masalan: 50" value="0">
+    <label class="sub">✈️ Oyiga necha marta uchasiz?</label>
+    <input class="input" type="number" id="calcFlight" placeholder="masalan: 0" value="0">
+    <label class="sub">🥩 Haftada necha marta go'sht iste'mol qilasiz?</label>
+    <input class="input" type="number" id="calcMeat" placeholder="masalan: 5" value="0">
+    <label class="sub">🗑 Chiqindini ajratib tashlaysizmi?</label>
+    <select class="input" id="calcRecycle">
+      <option value="0">Yo'q</option>
+      <option value="1">Ba'zan</option>
+      <option value="2">Doim</option>
+    </select>
+    <button class="btn" onclick="calcFootprint()">Hisoblash</button>
+    <div class="footprint-result" id="footprintResult"></div>
+    <p class="sub" id="footprintTip" style="text-align:center;"></p>
+  </div>
+
+  <div class="card">
+    <h3>🌳 Daraxt hisoblagichi</h3>
+    <p>1 daraxt yiliga ~21 kg CO₂ ni yutadi. Karbon izingizni qoplash uchun necha daraxt kerakligini bilib oling.</p>
+    <div class="footprint-result" id="treeResult">–</div>
+  </div>
+</section>
+
+<!-- REYTING -->
+<section class="tab" id="tab-rank">
+  <div id="rankWrap"><p class="empty">Yuklanmoqda...</p></div>
+</section>
+
+<!-- PROFIL / XARITA -->
+<section class="tab" id="tab-profile">
+  <div class="card">
+    <h3>👤 Mening profilim</h3>
+    <p>Fakultet: <b id="pFaculty">—</b></p>
+    <p>Kurs: <b id="pCourse">—</b></p>
+    <p>Umumiy ball: <b id="pPoints">0</b></p>
+  </div>
+
+  <div class="card">
+    <h3>🎫 Mening QR-chiptam</h3>
+    <p>Tadbirda ro'yxatdan o'tganingizni tasdiqlash uchun ushbu kodni ko'rsating</p>
+    <div id="qrcode"></div>
+  </div>
+
+  <div class="card">
+    <h3>♻️ Qayta ishlash punktlari</h3>
+    <div id="recyclingWrap"><p class="empty">Yuklanmoqda...</p></div>
+  </div>
+
+  <div class="card">
+    <h3>📚 Resurslar</h3>
+    <div id="resourcesWrap"><p class="empty">Yuklanmoqda...</p></div>
+  </div>
+</section>
+
+<nav>
+  <button class="navbtn active" data-tab="home" onclick="switchTab('home')"><span class="ic">🏠</span>Bosh</button>
+  <button class="navbtn" data-tab="events" onclick="switchTab('events')"><span class="ic">📅</span>Tadbirlar</button>
+  <button class="navbtn" data-tab="calc" onclick="switchTab('calc')"><span class="ic">🧮</span>Kalkulyator</button>
+  <button class="navbtn" data-tab="rank" onclick="switchTab('rank')"><span class="ic">🏆</span>Reyting</button>
+  <button class="navbtn" data-tab="profile" onclick="switchTab('profile')"><span class="ic">👤</span>Profil</button>
+</nav>
+
+<script>
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+// ====== KONFIGURATSIYA ======
+// Bot backend API manzilini shu yerga qo'ying (webapp_api.py joylashgan server)
+const API_BASE = "https://your-api-domain.com";
+
+const TITLES = {home:"Bosh sahifa", events:"Tadbirlar", calc:"Eko-kalkulyator", rank:"Reyting", profile:"Profil"};
+
+function haptic(type){
+  try{ tg?.HapticFeedback?.impactOccurred(type || "light"); }catch(e){}
+}
+
+function switchTab(name){
+  haptic("light");
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  document.querySelectorAll(".navbtn").forEach(b=>b.classList.remove("active"));
+  document.getElementById("tab-"+name).classList.add("active");
+  document.querySelector(`.navbtn[data-tab="${name}"]`).classList.add("active");
+  document.getElementById("tabTitle").textContent = TITLES[name];
+}
+
+function shareApp(){
+  if (tg?.switchInlineQuery) {
+    tg.switchInlineQuery("Eco Club botiga qo'shiling! 🌱", ["users","groups"]);
+  } else {
+    alert("Ulashish faqat Telegram ichida ishlaydi.");
+  }
+}
+
+// ====== FOYDALANUVCHI MA'LUMOTLARI ======
+async function loadMe(){
+  const tgUser = tg?.initDataUnsafe?.user;
+  document.getElementById("userName").textContent = tgUser ? (tgUser.first_name || "Foydalanuvchi") : "Mehmon";
+  document.getElementById("greeting").textContent = "🌱 Salom, " + (tgUser?.first_name || "do'stim") + "!";
+
+  if (tg?.initData) {
+    try {
+      const res = await fetch(`${API_BASE}/api/me?initData=${encodeURIComponent(tg.initData)}`);
+      if (res.ok) {
+        const data = await res.json();
+        renderProfile(data);
+        return;
+      }
+    } catch(e){ console.warn("API /me xato:", e); }
+  }
+  renderProfile({points:0, faculty:null, course:null, badges:[]});
+}
+
+function levelInfo(points){
+  const levels = [
+    {min:0, name:"🌱 Yangi a'zo"}, {min:20, name:"🌿 Faol a'zo"},
+    {min:60, name:"🌳 Eko-faol"}, {min:150, name:"🏅 Eko-chempion"},
+    {min:300, name:"🌍 Sayyora qahramoni"},
+  ];
+  let current = levels[0], next = levels[1];
+  for (let i=0;i<levels.length;i++){
+    if (points >= levels[i].min){ current = levels[i]; next = levels[i+1] || null; }
+  }
+  const progress = next ? Math.min(100, Math.round(((points-current.min)/(next.min-current.min))*100)) : 100;
+  return {name:current.name, progress, next};
+}
+
+function renderProfile(data){
+  document.getElementById("pointsPill").textContent = data.points + " ball";
+  document.getElementById("pFaculty").textContent = data.faculty || "—";
+  document.getElementById("pCourse").textContent = data.course || "—";
+  document.getElementById("pPoints").textContent = data.points;
+  const lvl = levelInfo(data.points);
+  document.getElementById("levelText").textContent = "Daraja: " + lvl.name;
+  document.getElementById("levelProgress").style.width = lvl.progress + "%";
+  document.getElementById("levelBadge").textContent = lvl.name.split(" ")[0];
+
+  const badgesWrap = document.getElementById("badgesWrap");
+  if (data.badges && data.badges.length){
+    badgesWrap.innerHTML = data.badges.map(b=>`<span class="badge-chip">🏅 ${b}</span>`).join("");
+  }
+
+  // QR-chipta: user_id + ball asosida
+  const qrEl = document.getElementById("qrcode");
+  qrEl.innerHTML = "";
+  const uid = tg?.initDataUnsafe?.user?.id || "guest";
+  try{
+    new QRCode(qrEl, {text: `ECOCLUB-USER-${uid}`, width:140, height:140, colorDark:"#2ea043"});
+  }catch(e){}
+}
+
+// ====== TADBIRLAR ======
+async function loadEvents(){
+  try{
+    const res = await fetch(`${API_BASE}/api/events`);
+    const events = await res.json();
+    document.getElementById("statEvents").textContent = events.length;
+    const wrap = document.getElementById("eventsWrap");
+    wrap.innerHTML = events.length ? events.map(e=>`
+      <div class="card">
+        <div class="row"><h3>${e.title}</h3><span class="pill">${e.registrations} 👥</span></div>
+        <p>${e.description || ""}</p>
+        <p>🗓 ${e.date} &nbsp; 📍 ${e.location || "—"}</p>
+      </div>`).join("") : `<p class="empty">Hozircha faol tadbirlar yo'q.</p>`;
+  }catch(e){ document.getElementById("eventsWrap").innerHTML = `<p class="empty">Ma'lumot yuklanmadi. Botdagi "📅 Tadbirlar" bo'limidan foydalaning.</p>`; }
+}
+
+// ====== CHALLENGE SONI ======
+async function loadChallengeCount(){
+  try{
+    const res = await fetch(`${API_BASE}/api/challenges`);
+    const items = await res.json();
+    document.getElementById("statChallenges").textContent = items.length;
+  }catch(e){ document.getElementById("statChallenges").textContent = "–"; }
+}
+
+// ====== REYTING ======
+async function loadLeaderboard(){
+  try{
+    const res = await fetch(`${API_BASE}/api/leaderboard?limit=15`);
+    const top = await res.json();
+    const medals = ["🥇","🥈","🥉"];
+    document.getElementById("rankWrap").innerHTML = top.length ? `<div class="card">` + top.map((u,i)=>`
+      <div class="row" style="padding:6px 0; ${i<top.length-1?'border-bottom:1px solid var(--sec-bg);':''}">
+        <span>${medals[i]||(i+1)+"."} ${u.name}</span><b>${u.points}</b>
+      </div>`).join("") + `</div>` : `<p class="empty">Reyting hali bo'sh.</p>`;
+  }catch(e){ document.getElementById("rankWrap").innerHTML = `<p class="empty">Ma'lumot yuklanmadi.</p>`; }
+}
+
+// ====== RESURSLAR ======
+async function loadResources(){
+  try{
+    const res = await fetch(`${API_BASE}/api/resources`);
+    const items = await res.json();
+    document.getElementById("resourcesWrap").innerHTML = items.length ? items.map(r=>
+      `<p>🔗 <a href="${r.url}" target="_blank">${r.title}</a> <span class="sub">(${r.category||"—"})</span></p>`
+    ).join("") : `<p class="empty">Resurslar hali qo'shilmagan.</p>`;
+  }catch(e){}
+}
+
+// ====== QAYTA ISHLASH PUNKTLARI ======
+async function loadRecycling(){
+  try{
+    const res = await fetch(`${API_BASE}/api/recycling-points`);
+    const items = await res.json();
+    document.getElementById("recyclingWrap").innerHTML = items.length ? items.map(p=>`
+      <div style="margin-bottom:8px;">
+        <b>${p.name}</b><br><span class="sub">${p.address} — ${p.materials}</span>
+        ${p.lat ? `<br><a href="https://maps.google.com/?q=${p.lat},${p.lng}" target="_blank">📍 Xaritada ko'rish</a>` : ""}
+      </div>`).join("") : `<p class="empty">Hali punktlar qo'shilmagan.</p>`;
+  }catch(e){}
+}
+
+// ====== HAVO SIFATI (Open-Meteo, bepul, kalitsiz) ======
+async function loadAirQuality(){
+  const lat = 41.2995, lon = 69.2401; // Toshkent (config.py dagi CITY_LAT/CITY_LON bilan moslashtiring)
+  try{
+    const res = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=pm2_5,european_aqi`);
+    const data = await res.json();
+    const aqi = Math.round(data.current.european_aqi);
+    const pm25 = data.current.pm2_5;
+    document.getElementById("aqiValue").textContent = aqi;
+    document.getElementById("pm25").textContent = pm25;
+    let label, idx;
+    if (aqi<=20){label="🟢 A'lo";idx=0;} else if(aqi<=40){label="🟡 Yaxshi";idx=1;}
+    else if(aqi<=60){label="🟠 O'rtacha";idx=2;} else if(aqi<=80){label="🔴 Yomon";idx=3;}
+    else if(aqi<=100){label="🟣 Zararli";idx=4;} else {label="⚫ Xavfli";idx=5;}
+    document.getElementById("aqiLabel").textContent = label;
+    document.querySelectorAll("#aqScale div").forEach((d,i)=>d.classList.toggle("on", i<=idx));
+  }catch(e){
+    document.getElementById("aqiLabel").textContent = "Ma'lumot olinmadi";
+  }
+}
+
+// ====== KARBON IZ KALKULYATORI ======
+function calcFootprint(){
+  haptic("medium");
+  const car = parseFloat(document.getElementById("calcCar").value) || 0;
+  const flight = parseFloat(document.getElementById("calcFlight").value) || 0;
+  const meat = parseFloat(document.getElementById("calcMeat").value) || 0;
+  const recycle = parseFloat(document.getElementById("calcRecycle").value) || 0;
+
+  // Taxminiy koeffitsientlar (kg CO2)
+  const weeklyCO2 = (car * 0.192) + (flight * 4 * 90) + (meat * 3.3) - (recycle * 2);
+  const yearlyKg = Math.max(0, Math.round(weeklyCO2 * 52));
+
+  document.getElementById("footprintResult").textContent = yearlyKg.toLocaleString() + " kg CO₂/yil";
+  let tip = "🎉 Ajoyib! Siz eng eko-do'stona toifadasiz.";
+  if (yearlyKg > 8000) tip = "⚠️ Iz yuqori. Avtomobil o'rniga velosiped yoki jamoat transportini sinab ko'ring.";
+  else if (yearlyKg > 3000) tip = "🙂 O'rtacha daraja. Go'sht iste'molini kamaytirish yordam beradi.";
+  document.getElementById("footprintTip").textContent = tip;
+
+  const trees = Math.max(1, Math.round(yearlyKg / 21));
+  document.getElementById("treeResult").textContent = "🌳 " + trees + " ta daraxt/yil";
+}
+
+// ====== ISHGA TUSHIRISH ======
+loadMe();
+loadEvents();
+loadChallengeCount();
+loadLeaderboard();
+loadResources();
+loadRecycling();
+loadAirQuality();
+</script>
+</body>
+</html>
