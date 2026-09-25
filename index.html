@@ -6,6 +6,7 @@
 <title>Eco Club</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
   :root{
     --bg: var(--tg-theme-bg-color, #f2f7f2);
@@ -96,6 +97,21 @@
   a{color:var(--link);}
   #qrcode{display:flex; justify-content:center; margin:12px 0;}
   .footprint-result{font-size:28px; font-weight:800; text-align:center; margin:8px 0 0;}
+  .hidden{display:none !important;}
+  .scan-frame{
+    position:relative; width:100%; max-width:320px; margin:0 auto; border-radius:16px;
+    overflow:hidden; background:#000; aspect-ratio:1/1;
+  }
+  .scan-frame video{width:100%; height:100%; object-fit:cover;}
+  .scan-frame::after{
+    content:""; position:absolute; inset:12%; border:3px solid var(--accent2);
+    border-radius:16px; box-shadow:0 0 0 999px rgba(0,0,0,.35);
+  }
+  .scan-result{
+    margin-top:12px; padding:12px 14px; border-radius:12px; font-size:14px; text-align:center;
+  }
+  .scan-result.ok{background:rgba(46,160,67,.15); color:var(--accent);}
+  .scan-result.warn{background:rgba(224,82,82,.15); color:var(--danger);}
 </style>
 </head>
 <body>
@@ -210,12 +226,31 @@
   </div>
 </section>
 
+<!-- ADMIN: QR SKANER -->
+<section class="tab" id="tab-scan">
+  <div class="card">
+    <h3>📷 Tashrifni QR orqali tasdiqlash</h3>
+    <p>Qaysi tadbir uchun tashrifni belgilamoqchisiz, tanlang va foydalanuvchining QR-chiptasini kameraga ko'rsating.</p>
+    <select class="input" id="scanEventSelect"></select>
+    <div class="scan-frame" id="scanFrame">
+      <video id="scanVideo" playsinline autoplay muted></video>
+    </div>
+    <canvas id="scanCanvas" class="hidden"></canvas>
+    <div class="row" style="margin-top:10px; gap:8px;">
+      <button class="btn" id="scanStartBtn" onclick="startScan()">▶️ Skanerni yoqish</button>
+      <button class="btn secondary hidden" id="scanStopBtn" onclick="stopScan()">⏹ To'xtatish</button>
+    </div>
+    <div id="scanResult"></div>
+  </div>
+</section>
+
 <nav>
   <button class="navbtn active" data-tab="home" onclick="switchTab('home')"><span class="ic">🏠</span>Bosh</button>
   <button class="navbtn" data-tab="events" onclick="switchTab('events')"><span class="ic">📅</span>Tadbirlar</button>
   <button class="navbtn" data-tab="calc" onclick="switchTab('calc')"><span class="ic">🧮</span>Kalkulyator</button>
   <button class="navbtn" data-tab="rank" onclick="switchTab('rank')"><span class="ic">🏆</span>Reyting</button>
   <button class="navbtn" data-tab="profile" onclick="switchTab('profile')"><span class="ic">👤</span>Profil</button>
+  <button class="navbtn hidden" id="navScanBtn" data-tab="scan" onclick="switchTab('scan')"><span class="ic">📷</span>Skaner</button>
 </nav>
 
 <script>
@@ -226,7 +261,7 @@ if (tg) { tg.ready(); tg.expand(); }
 // Bot backend API manzilini shu yerga qo'ying (webapp_api.py joylashgan server)
 const API_BASE = "https://your-api-domain.com";
 
-const TITLES = {home:"Bosh sahifa", events:"Tadbirlar", calc:"Eko-kalkulyator", rank:"Reyting", profile:"Profil"};
+const TITLES = {home:"Bosh sahifa", events:"Tadbirlar", calc:"Eko-kalkulyator", rank:"Reyting", profile:"Profil", scan:"QR-skaner"};
 
 function haptic(type){
   try{ tg?.HapticFeedback?.impactOccurred(type || "light"); }catch(e){}
@@ -239,6 +274,7 @@ function switchTab(name){
   document.getElementById("tab-"+name).classList.add("active");
   document.querySelector(`.navbtn[data-tab="${name}"]`).classList.add("active");
   document.getElementById("tabTitle").textContent = TITLES[name];
+  if (name !== "scan") stopScan();
 }
 
 function shareApp(){
@@ -297,6 +333,10 @@ function renderProfile(data){
     badgesWrap.innerHTML = data.badges.map(b=>`<span class="badge-chip">🏅 ${b}</span>`).join("");
   }
 
+  if (data.is_admin) {
+    document.getElementById("navScanBtn").classList.remove("hidden");
+  }
+
   // QR-chipta: user_id + ball asosida
   const qrEl = document.getElementById("qrcode");
   qrEl.innerHTML = "";
@@ -307,10 +347,12 @@ function renderProfile(data){
 }
 
 // ====== TADBIRLAR ======
+let ALL_EVENTS = [];
 async function loadEvents(){
   try{
     const res = await fetch(`${API_BASE}/api/events`);
     const events = await res.json();
+    ALL_EVENTS = events;
     document.getElementById("statEvents").textContent = events.length;
     const wrap = document.getElementById("eventsWrap");
     wrap.innerHTML = events.length ? events.map(e=>`
@@ -319,6 +361,11 @@ async function loadEvents(){
         <p>${e.description || ""}</p>
         <p>🗓 ${e.date} &nbsp; 📍 ${e.location || "—"}</p>
       </div>`).join("") : `<p class="empty">Hozircha faol tadbirlar yo'q.</p>`;
+
+    const sel = document.getElementById("scanEventSelect");
+    sel.innerHTML = events.length
+      ? events.map(e=>`<option value="${e.id}">${e.title} — ${e.date}</option>`).join("")
+      : `<option value="">Faol tadbir yo'q</option>`;
   }catch(e){ document.getElementById("eventsWrap").innerHTML = `<p class="empty">Ma'lumot yuklanmadi. Botdagi "📅 Tadbirlar" bo'limidan foydalaning.</p>`; }
 }
 
@@ -409,6 +456,88 @@ function calcFootprint(){
 
   const trees = Math.max(1, Math.round(yearlyKg / 21));
   document.getElementById("treeResult").textContent = "🌳 " + trees + " ta daraxt/yil";
+}
+
+// ====== QR SKANER (faqat admin) ======
+let scanStream = null;
+let scanRafId = null;
+let scanBusy = false;
+
+async function startScan(){
+  const sel = document.getElementById("scanEventSelect");
+  if (!sel.value) { showScanResult("Avval faol tadbirni tanlang.", "warn"); return; }
+  try{
+    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+  }catch(e){
+    showScanResult("Kameraga ruxsat berilmadi. Brauzer/Telegram sozlamalaridan kamera ruxsatini yoqing.", "warn");
+    return;
+  }
+  const video = document.getElementById("scanVideo");
+  video.srcObject = scanStream;
+  document.getElementById("scanStartBtn").classList.add("hidden");
+  document.getElementById("scanStopBtn").classList.remove("hidden");
+  document.getElementById("scanResult").innerHTML = "";
+  scanLoop();
+}
+
+function stopScan(){
+  if (scanRafId) cancelAnimationFrame(scanRafId);
+  scanRafId = null;
+  if (scanStream) { scanStream.getTracks().forEach(t=>t.stop()); scanStream = null; }
+  document.getElementById("scanStartBtn").classList.remove("hidden");
+  document.getElementById("scanStopBtn").classList.add("hidden");
+}
+
+function scanLoop(){
+  const video = document.getElementById("scanVideo");
+  const canvas = document.getElementById("scanCanvas");
+  scanRafId = requestAnimationFrame(scanLoop);
+  if (scanBusy || video.readyState !== video.HAVE_ENOUGH_DATA) return;
+
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+  if (code && code.data && code.data.startsWith("ECOCLUB-USER-")) {
+    const scannedUserId = parseInt(code.data.replace("ECOCLUB-USER-", ""), 10);
+    if (!isNaN(scannedUserId)) {
+      scanBusy = true;
+      haptic("medium");
+      confirmCheckin(scannedUserId);
+    }
+  }
+}
+
+async function confirmCheckin(scannedUserId){
+  const eventId = parseInt(document.getElementById("scanEventSelect").value, 10);
+  try{
+    const res = await fetch(`${API_BASE}/api/checkin`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ initData: tg.initData, event_id: eventId, scanned_user_id: scannedUserId }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showScanResult(data.detail || "Xatolik yuz berdi.", "warn");
+    } else if (data.status === "already") {
+      haptic("light");
+      showScanResult("ℹ️ " + data.message, "warn");
+    } else {
+      haptic("heavy");
+      showScanResult("✅ " + data.message, "ok");
+    }
+  }catch(e){
+    showScanResult("Serverga ulanib bo'lmadi. API_BASE manzilini tekshiring.", "warn");
+  }
+  // 2.5 soniyadan keyin yana skanerlashga tayyor bo'ladi
+  setTimeout(()=>{ scanBusy = false; }, 2500);
+}
+
+function showScanResult(message, kind){
+  document.getElementById("scanResult").innerHTML = `<div class="scan-result ${kind}">${message}</div>`;
 }
 
 // ====== ISHGA TUSHIRISH ======
